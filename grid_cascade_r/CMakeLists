@@ -1,0 +1,216 @@
+# ==============================================================================
+# CMakeLists.txt
+# Build system for GridCascade C++ library
+# ==============================================================================
+
+cmake_minimum_required(VERSION 3.15)
+project(GridCascade VERSION 1.0.0 LANGUAGES CXX)
+
+# C++17 required
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Build options
+option(BUILD_R_PACKAGE "Build R package with Rcpp" ON)
+option(BUILD_STANDALONE "Build standalone executable" ON)
+option(ENABLE_OPENMP "Enable OpenMP parallelization" ON)
+option(BUILD_TESTS "Build unit tests" ON)
+
+# ==============================================================================
+# DEPENDENCIES
+# ==============================================================================
+
+# Find Boost (Graph library)
+find_package(Boost 1.70 REQUIRED)
+
+# Find Eigen3
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
+# Find GDAL
+find_package(GDAL 3.0 REQUIRED)
+
+# OpenMP (optional)
+if(ENABLE_OPENMP)
+    find_package(OpenMP)
+    if(OpenMP_CXX_FOUND)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    endif()
+endif()
+
+# ==============================================================================
+# CORE LIBRARY
+# ==============================================================================
+
+add_library(gridcascade SHARED
+    src/grid_cascade.cpp
+)
+
+target_include_directories(gridcascade PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    ${Boost_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIR}
+    ${GDAL_INCLUDE_DIRS}
+)
+
+target_link_libraries(gridcascade PUBLIC
+    Eigen3::Eigen
+    ${GDAL_LIBRARIES}
+    ${Boost_LIBRARIES}
+)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(gridcascade PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# Compiler optimizations
+target_compile_options(gridcascade PRIVATE
+    $<$<CONFIG:Release>:-O3 -march=native -mtune=native>
+    $<$<CONFIG:Debug>:-g -O0>
+)
+
+# ==============================================================================
+# R PACKAGE (Rcpp)
+# ==============================================================================
+
+if(BUILD_R_PACKAGE)
+    # Find R
+    find_program(R_EXECUTABLE NAMES R)
+    
+    if(R_EXECUTABLE)
+        # Get R configuration
+        execute_process(
+            COMMAND ${R_EXECUTABLE} CMD config --cppflags
+            OUTPUT_VARIABLE R_CXX_FLAGS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        
+        execute_process(
+            COMMAND ${R_EXECUTABLE} CMD config --ldflags
+            OUTPUT_VARIABLE R_LD_FLAGS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        
+        # Find Rcpp
+        execute_process(
+            COMMAND ${R_EXECUTABLE} --slave -e "Rcpp:::CxxFlags()"
+            OUTPUT_VARIABLE RCPP_CXXFLAGS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        
+        execute_process(
+            COMMAND ${R_EXECUTABLE} --slave -e "Rcpp:::LdFlags()"
+            OUTPUT_VARIABLE RCPP_LDFLAGS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        
+        # Build Rcpp module
+        add_library(GridCascadeR SHARED
+            R/RcppGridCascade.cpp
+        )
+        
+        target_include_directories(GridCascadeR PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${RCPP_CXXFLAGS}
+        )
+        
+        target_link_libraries(GridCascadeR PRIVATE
+            gridcascade
+            ${RCPP_LDFLAGS}
+        )
+        
+        set_target_properties(GridCascadeR PROPERTIES
+            PREFIX ""
+            SUFFIX ".so"
+            OUTPUT_NAME "GridCascadeR"
+        )
+        
+        message(STATUS "R package build enabled")
+    else()
+        message(WARNING "R executable not found, skipping R package build")
+    endif()
+endif()
+
+# ==============================================================================
+# STANDALONE EXECUTABLE (for testing)
+# ==============================================================================
+
+if(BUILD_STANDALONE)
+    add_executable(cascade_test
+        examples/cascade_example.cpp
+    )
+    
+    target_link_libraries(cascade_test PRIVATE gridcascade)
+    
+    message(STATUS "Standalone executable enabled")
+endif()
+
+# ==============================================================================
+# TESTS
+# ==============================================================================
+
+if(BUILD_TESTS)
+    enable_testing()
+    
+    # Google Test (if available)
+    find_package(GTest)
+    
+    if(GTest_FOUND)
+        add_executable(grid_tests
+            tests/test_graph.cpp
+            tests/test_fire_impact.cpp
+            tests/test_cascade.cpp
+        )
+        
+        target_link_libraries(grid_tests PRIVATE
+            gridcascade
+            GTest::GTest
+            GTest::Main
+        )
+        
+        add_test(NAME GridTests COMMAND grid_tests)
+        
+        message(STATUS "Unit tests enabled")
+    else()
+        message(WARNING "GTest not found, skipping tests")
+    endif()
+endif()
+
+# ==============================================================================
+# INSTALLATION
+# ==============================================================================
+
+install(TARGETS gridcascade
+    EXPORT GridCascadeTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+    INCLUDES DESTINATION include
+)
+
+install(DIRECTORY include/
+    DESTINATION include
+)
+
+install(EXPORT GridCascadeTargets
+    FILE GridCascadeTargets.cmake
+    NAMESPACE GridCascade::
+    DESTINATION lib/cmake/GridCascade
+)
+
+# ==============================================================================
+# PRINT CONFIGURATION SUMMARY
+# ==============================================================================
+
+message(STATUS "")
+message(STATUS "GridCascade Configuration Summary:")
+message(STATUS "  C++ Standard:        ${CMAKE_CXX_STANDARD}")
+message(STATUS "  Build Type:          ${CMAKE_BUILD_TYPE}")
+message(STATUS "  Boost version:       ${Boost_VERSION}")
+message(STATUS "  Eigen version:       ${EIGEN3_VERSION}")
+message(STATUS "  GDAL version:        ${GDAL_VERSION}")
+message(STATUS "  OpenMP:              ${OpenMP_CXX_FOUND}")
+message(STATUS "  R Package:           ${BUILD_R_PACKAGE}")
+message(STATUS "  Standalone:          ${BUILD_STANDALONE}")
+message(STATUS "  Tests:               ${BUILD_TESTS}")
+message(STATUS "")
