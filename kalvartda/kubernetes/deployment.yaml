@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tda-engine
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tda-engine
+  template:
+    metadata:
+      labels:
+        app: tda-engine
+    spec:
+      containers:
+      - name: tda-engine
+        image: tda-engine:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: tda-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: tda-secrets
+              key: redis-url
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        - name: output-volume
+          mountPath: /app/outputs
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: tda-data-pvc
+      - name: output-volume
+        persistentVolumeClaim:
+          claimName: tda-output-pvc

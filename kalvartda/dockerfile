@@ -1,0 +1,39 @@
+FROM rust:1.70 as rust-builder
+
+WORKDIR /app
+COPY core/ ./core/
+WORKDIR /app/core
+RUN cargo build --release
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libgdal-dev \
+    gdal-bin \
+    libspatialindex-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Rust library
+COPY --from=rust-builder /app/core/target/release/libtda_engine.so /usr/local/lib/
+
+# Set up Python environment
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY interface/ ./interface/
+COPY web/ ./web/
+COPY data/ ./data/
+COPY Perseus/ ./Perseus/
+
+# Set environment variables
+ENV PYTHONPATH=/app/interface
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+
+EXPOSE 8000
+
+CMD ["python", "-m", "uvicorn", "web.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
