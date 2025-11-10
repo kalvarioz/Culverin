@@ -1,0 +1,80 @@
+.App {
+  text-align: center;
+}
+
+/* Control Panel Animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.control-panel-enter {
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* Progress Tracker Animations */
+@keyframes slideInBottom {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.progress-tracker-enter {
+  animation: slideInBottom 0.3s ease-out;
+}
+
+/* Map overlay styles */
+.map-overlay {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+/* Legend */
+.map-legend {
+  bottom: 30px;
+  left: 10px;
+  padding: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 1px solid #333;
+  border-radius: 2px;
+}
+
+/* Loading states */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
