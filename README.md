@@ -1,8 +1,8 @@
-# KALVARTDA
+# Culverin
 
-This is a project that was started in Summer of 2025, it was originally a project that was built during an REU.
+A IP analysis and Pentesting platform that provides a visual interface and testing with specialized tools to test and analyze results.
 
-Since then, i've been looking into developing it into a new direction, a Geograpic command center, which allows you to deploy tools and a map to show the information that you enter. Plans for this tool include: 
+Features (will) include:
 
 Network scans showing live hosts
 Traffic analysis displaying packet flows
